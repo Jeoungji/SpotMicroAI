@@ -60,4 +60,4 @@ typedef struct Senddata {
 	while(Serial.available()){     \
 		Serial.read();             \
 	};                             \
-}                                  \
+}                                  

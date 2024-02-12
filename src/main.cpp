@@ -84,7 +84,6 @@ Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 Controllers cont(12);
 Kinematic kn;
 Matrix mat;
-MPU9250 mpu;
 MPU9250 mpu(&SPI, SPI_CLOCK, SS_PIN);
 SENDDATA senddata = {0,};
 char sendbuffer[sizeof(SENDDATA)];
@@ -307,7 +306,17 @@ void ReadCommand_rasp() {
     FV_Check();
   }
 }
+float Voltage() {
+  volageSensor.voltage[volageSensor.head] = analogRead(Voltage_sensor) * 3.3 / 1024 * 4.5;
+  volageSensor.head++;
+  if (volageSensor.head >= VFilterSize) volageSensor.head = 0;
 
+  float sum = 0;
+  for (int i = 0; i < VFilterSize; i++)
+    sum += volageSensor.voltage[i];
+
+  return sum / VFilterSize;
+}
 void SendCommand_rasp() {
   senddata.checker = 65;
   senddata.mode_CID = 0;
@@ -334,17 +343,7 @@ void SendCommand_rasp() {
   Serial1.write(sendbuffer,sizeof(SENDDATA));
 }
 
-float Voltage() {
-  volageSensor.voltage[volageSensor.head] = analogRead(Voltage_sensor) * 3.3 / 1024 * 4.5;
-  volageSensor.head++;
-  if (volageSensor.head >= VFilterSize) volageSensor.head = 0;
 
-  float sum = 0;
-  for (int i = 0; i < VFilterSize; i++)
-    sum += volageSensor.voltage[i];
-
-  return sum / VFilterSize;
-}
 
 void Shift(int i, float POINT[4], float Set[4], footVector fv, float Stime, int t) {
 
