@@ -18,9 +18,9 @@
 /* select uart debugging */
 // Error Default
 #ifdef MPU9250DEBUG
-#define DEBUGINFO   0
+#define DEBUGINFO   1
 #define DEBUGTIME   0
-#define DEBUGDATA   0
+#define DEBUGDATA   1
 #endif
 
 #if MPU9250DEBUG == 0

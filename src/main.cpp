@@ -20,7 +20,7 @@
 #define CID_MASK 0xF0
 #define COM_MASK 0xF0
 
-#define Voltage_sensor 14
+#define Voltage_sensor 41
 
 
 #define pi 3.141592653589793238462643383
@@ -28,13 +28,11 @@
 #define INTERVAL_MS     10
 
 #define A_H 170
-#define A_Z  100
+#define A_Z  90
 #define A_X  110
 
 
 volatag_avf volageSensor = {0,{11,}};
-
-
 
 footVector FV[4] = {{0,0,40},{0,0,40},{0,0,40},{0,0,40}}; // FL, FR, BL, BR
 
@@ -60,13 +58,13 @@ bool status[4] = {false, false, false, false};
 int active_flag = 4;
 int last_active_flag = 4;
 float footpoint[4][4] = {{100, -A_H, 100,1}, {100, -A_H, -100,1}, {-100, -A_H, 100,1}, {-100, -A_H, -100,1}};
-float centerpoint[3] = {0, 0, 0};
+float centerpoint[3] = {33.502508864, 0, -3.648709096};
 float centerangle[3] = {0, 0, 0};
 
 float Resetfootpoint[4][4] = {{A_X, -A_H, A_Z,1}, {A_X, -A_H, -A_Z,1}, {-A_X, -A_H, A_Z,1}, {-A_X, -A_H, -A_Z,1}};
-float CResetcenter[3] = {36, 0, -10};
+float CResetcenter[3] = {33.502508864, 0, -3.648709096};
 float CResetangle[3] = {0, 0, 0};
-float Resetcenter[3] = {36, 0, -10};
+float Resetcenter[3] = {33.502508864, 0, -3.648709096};
 float Resetangle[3] = {0, 0, 0};
 
 // float robotangle[3] = {0, 0, 0};
@@ -390,8 +388,8 @@ void Walking (float point[4][4], float Set[4][4]) {
   else if (RightTimer - t_[0] <= t_[1]) { // 1000 ~ 2000
     Shift(2, point[2], Set[2], FV[2], RightTimer - t_[0], t_[1]);
     Shift(1, point[1], Set[1], FV[1], RightTimer - t_[0], t_[1]);
-    centerpoint[2] = -3;
-    centerpoint[0] = 40;
+    //centerpoint[2] = 0;
+    //centerpoint[0] = 40;
     //Serial.print("shift");
   }
   else if (RightTimer - t_[0] - t_[1] <= t_[2]) { // 2000 ~ 3000
@@ -413,8 +411,8 @@ void Walking (float point[4][4], float Set[4][4]) {
   else if (LeftTimer - t_[0] <= t_[1]) { // 1000 ~ 2000
     Shift(3, point[3], Set[3], FV[3], LeftTimer - t_[0], t_[1]);
     Shift(0, point[0], Set[0], FV[0], LeftTimer - t_[0], t_[1]);
-    centerpoint[2] = -20;
-    centerpoint[0] = 40;
+    //centerpoint[2] = -5;
+    //centerpoint[0] = 40;
     //Serial.print("shift");
   }
   else if (LeftTimer - t_[0] - t_[1] <= t_[2]) { // 2000 ~ 3000
@@ -564,8 +562,13 @@ void setup() {
 	pinMode(LED, OUTPUT);
 	digitalWrite(LED, HIGH);
 
-	if(mpu.auto_init() > 0)
-		while(1);
+  while(!Lie(footpoint, centerpoint, centerangle)){}
+
+	if(mpu.auto_init() > 0) 
+		while(1) {
+      Serial.println("mpu set error");
+      delay(5000);
+    }
 	mpu.init_Kalman();
 	delay(1000);
 
@@ -611,6 +614,10 @@ void loop() {
       case 2:
         if (walking_mode == 0) Walking(footpoint, Resetfootpoint);
         else if (walking_mode == 1 ) Walking2(footpoint, Resetfootpoint);
+        for (int i = 0; i < 3; i++) {
+          centerpoint[i] = CResetcenter[i];
+          centerangle[i] = CResetangle[i];
+        }
         last_active_flag = 2;
       break;
       case 3:
@@ -706,3 +713,5 @@ void loop() {
     }
   }
 }
+
+

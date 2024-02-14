@@ -1,7 +1,7 @@
 // All Debug Control
 #define DEBUGING        1
 
-#define MPU9250DEBUG    0
+#define MPU9250DEBUG    1
 
 #if DEBUGING == 0
 #undef  MPU9250DEBUG
