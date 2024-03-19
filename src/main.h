@@ -1,3 +1,17 @@
+#pragma once
+
+#ifndef _MAIN
+#define _MAIN
+
+#include <SPI.h>
+#include <MPU9250.h>
+#include <Servo12.h>
+#include "Controllers.h"
+#include "Kinematics.h"
+#include "Matrix.h"
+#include <Filter.h>
+#include <SpotMicro.h>
+
 // All Debug Control
 #define DEBUGING        1
 
@@ -9,8 +23,10 @@
 
 #endif
 
-
-#define VFilterSize 100
+#define VSENSOR 41
+#define MPOWER  29
+#define INTERVAL_MS     10
+#define pi 3.141592653589793238462643383
 
 typedef struct Bfloat {
     bool ok;
@@ -28,16 +44,7 @@ typedef struct XYZ {
     float z;
 } XYZ;
 
-typedef struct volatag_avf {
-  int head;
-  float voltage[VFilterSize];
-}volatag_avf;
 
-typedef struct footVector {
-  float x;
-  float y;
-  float z;
-} footVector;
 
 typedef struct XYZ_c {
   int8_t x;
@@ -45,19 +52,11 @@ typedef struct XYZ_c {
   int8_t z;
 } XYZ_c;
 
-typedef struct Senddata {
-    int8_t speed_x;
-    int8_t speed_y;
-    XYZ_c centerAngle;
-    XYZ_c imu;
-    unsigned char voltage;
-    unsigned char mode_CID;
-    unsigned char checker;
-}SENDDATA;
-
 #define WAITFORINPUT(){            \
 	while(!Serial.available()){};  \
 	while(Serial.available()){     \
 		Serial.read();             \
 	};                             \
 }                                  
+
+#endif

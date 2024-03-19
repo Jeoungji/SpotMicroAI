@@ -5,7 +5,7 @@
  * 
  * Open source under the MIT License. See LICENSE.txt.
  */
-
+#pragma once
 #ifndef MPU9250_h
 #define MPU9250_h
 #include <Arduino.h>

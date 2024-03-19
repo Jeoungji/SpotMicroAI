@@ -1,38 +1,21 @@
-#include <Arduino.h>
 #include <main.h>
 
-#include <SPI.h>
-#include <MPU9250.h>
-#include <Adafruit_PWMServoDriver.h>
-#include "Controllers.h"
-#include "Kinematics.h"
-#include "Matrix.h"
 
 #define SPI_CLOCK 8000000  // 8MHz clock works.
 
-#define SS_PIN   10 
+#define SS_PIN   37 
 #define INT_PIN  3
 #define LED      13
 
-#define DEBUG_MODE true
 #define CHECKER 65
 #define MODE_MASK 0x0F
 #define CID_MASK 0xF0
 #define COM_MASK 0xF0
 
-#define Voltage_sensor 41
-
-
-#define pi 3.141592653589793238462643383
-
-#define INTERVAL_MS     10
-
 #define A_H 170
 #define A_Z  90
 #define A_X  110
 
-
-volatag_avf volageSensor = {0,{11,}};
 
 footVector FV[4] = {{0,0,40},{0,0,40},{0,0,40},{0,0,40}}; // FL, FR, BL, BR
 
@@ -78,13 +61,19 @@ int real_interval = 0;
 long long main_clk = 0;
 long long Data_clock = 0;
 
-Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
-Controllers cont(12);
+
+int servopin[12] = {0,1,2,3,4,5,6,7,8,9,10,24};
+Servo ser[12];
+
+Servo12 driver(&ser[0], &ser[1], &ser[2],
+              &ser[3], &ser[4], &ser[5],
+              &ser[6], &ser[7], &ser[8],
+              &ser[9], &ser[10], &ser[11]);
+Controllers cont;
 Kinematic kn;
 Matrix mat;
 MPU9250 mpu(&SPI, SPI_CLOCK, SS_PIN);
-SENDDATA senddata = {0,};
-char sendbuffer[sizeof(SENDDATA)];
+SpotMicro robot;
 
 void FV_Check() {
   for (int i =0;i < 4; i++) {
@@ -230,118 +219,6 @@ void ReadCommand() {
     break;
   }
 }
-void ReadCommand_rasp() {
-  if (Serial1.available()) {
-    String data = Serial1.readString();
-
-    int index = data.indexOf(' '); // mode
-    int local_mode = data.substring(0, index).toInt();
-    data = data.substring(index+1);
-
-    index = data.indexOf(' '); // com
-    int l_com = data.substring(0, index).toFloat();
-    data = data.substring(index+1);
-
-    index = data.indexOf(' '); // speed x
-    float l_speed_x = data.substring(0, index).toFloat();
-    data = data.substring(index+1);
-  
-    index = data.indexOf(' '); // speed y
-    float l_speed_y = data.substring(0, index).toFloat();
-    data = data.substring(index+1);
-
-    index = data.indexOf(' '); // speed z
-    float l_speed_z = data.substring(0, index).toFloat();
-    data = data.substring(index+1);
-
-    index = data.indexOf(' '); // euler x
-    float l_euler_x = data.substring(0, index).toFloat();
-    data = data.substring(index+1);
-
-    index = data.indexOf(' '); // euler y
-    float l_euler_y = data.substring(0, index).toFloat();
-    data = data.substring(index+1);
-
-    index = data.indexOf(' '); // euler z
-    float l_euler_z = data.substring(0, index).toFloat();
-    data = data.substring(index+1);
-    
-    char buf[100];
-    sprintf(buf, "%d  %.2f %.2f %.2f  %.2f %.2f %.2f",local_mode, l_euler_x,l_euler_y, l_euler_z,l_speed_x, l_speed_y,l_speed_z);
-    Serial.println(buf);
-    switch (l_com) {
-      case 2:
-        for (int i = 0; i < 3; i++) {
-          CResetcenter[i] = Resetcenter[i];
-          CResetangle[i] = Resetangle[i];
-        }
-        break;
-
-    }
-    if (local_mode == 1) active_flag = local_mode;
-    if (local_mode == 5) {
-      if (walking_mode == 0) walking_mode = 1;
-      else if (walking_mode == 1) walking_mode = 0;
-    }else {
-      if (active_flag == 1) active_flag = local_mode;
-    }
-
-    CResetangle[0] = l_euler_x *pi / 180;
-    CResetangle[1] = l_euler_y * pi / 180;
-    CResetangle[2] = l_euler_z * pi / 180;
-
-    FV[0].x = l_speed_x + l_speed_z;
-    FV[0].y = l_speed_y - 2*l_speed_z;
-
-    FV[1].x = l_speed_x - l_speed_z;
-    FV[1].y = l_speed_y - 2*l_speed_z;
-
-    FV[2].x = l_speed_x + l_speed_z;
-    FV[2].y = l_speed_y + 2*l_speed_z;
-
-    FV[3].x = l_speed_x - l_speed_z;
-    FV[3].y = l_speed_y + 2*l_speed_z;
-    FV_Check();
-  }
-}
-float Voltage() {
-  volageSensor.voltage[volageSensor.head] = analogRead(Voltage_sensor) * 3.3 / 1024 * 4.5;
-  volageSensor.head++;
-  if (volageSensor.head >= VFilterSize) volageSensor.head = 0;
-
-  float sum = 0;
-  for (int i = 0; i < VFilterSize; i++)
-    sum += volageSensor.voltage[i];
-
-  return sum / VFilterSize;
-}
-void SendCommand_rasp() {
-  senddata.checker = 65;
-  senddata.mode_CID = 0;
-  senddata.mode_CID |= ((unsigned char)active_flag);
-  senddata.voltage = (unsigned char)(Voltage()*10);
-  senddata.centerAngle.x = (int8_t)(centerangle[0]*100);
-  senddata.centerAngle.y = (int8_t)(centerangle[1]*100);
-  senddata.centerAngle.z = (int8_t)(centerangle[2]*100);
-  senddata.imu.x = (int8_t)(IMU.x);
-  senddata.imu.y = (int8_t)(IMU.y);
-  senddata.imu.z = (int8_t)(IMU.z);
-  
-  float l_speed_x =0;
-  float l_speed_y =0;
-  for (int i = 0; i < 4; i++) {
-    l_speed_x += sqrt(FV[i].x*FV[i].x);
-    l_speed_y += sqrt(FV[i].y*FV[i].y);
-  }
-  senddata.speed_x = (char)(l_speed_x/4);
-  senddata.speed_y = (char)(l_speed_y/4);
-
-
-  memcpy(sendbuffer,&senddata, sizeof(SENDDATA));
-  Serial1.write(sendbuffer,sizeof(SENDDATA));
-}
-
-
 
 void Shift(int i, float POINT[4], float Set[4], footVector fv, float Stime, int t) {
 
@@ -550,13 +427,17 @@ float averageFilter(float *arr, int num, float value) {
 
 
 void setup() {
-  // put your setup code here, to run once:
-  pinMode(Voltage_sensor, INPUT);
-  pwm.begin();
-  pwm.setPWMFreq(60);
-  cont.SetController(&pwm);
+  pinMode(MPOWER, OUTPUT);
+  digitalWrite(MPOWER, HIGH);
+
+  if (!driver.begin(servopin, 500, 2500)) 
+    while(1) {
+       Serial.println("driver set error");
+        delay(5000);
+    }
+  cont.SetController(&driver);
   Serial.begin(115200);
-  Serial1.begin(115200);
+
 
 	pinMode(INT_PIN, INPUT);
 	pinMode(LED, OUTPUT);
@@ -569,149 +450,65 @@ void setup() {
       Serial.println("mpu set error");
       delay(5000);
     }
-	mpu.init_Kalman();
+
 	delay(1000);
 
-  senddata.mode_CID = (unsigned char)active_flag;
-  senddata.checker = CHECKER;
-
-  WAITFORINPUT();
+  //WAITFORINPUT();
   Serial.println("start");
+  
+  
 }
 
-
-
 void loop() {
+
   real_interval = millis()-main_clk;
-  main_clk = millis();
-  if (Voltage() < 9.6) {
-    if (low_voltage_count >= 10000) {
-      Serial.print("LOW_voltage ");
-      Serial.println(Voltage());
-      low_voltage_count = 0;
-    }
-    low_voltage_count++;
-    Voltage();
+  main_clk = millis();  
+  //ReadCommand();
+
+
+  if ((millis() - System_Clock) >= INTERVAL_MS) {
+    System_Clock = millis();
+
+    mpu.CalKalmanAngle(millis());
+    kn.calcIK(dotheta, footpoint, centerangle, centerpoint);
+    cont.servoRotate(dotheta);
   }
 
+  #if DEBUGING == 1
+  if ((millis() - Debug_Clock) > 100) {
+    Debug_Clock = millis();
+
+    Serial.print("  clk : ");
+    Serial.print(real_interval);
+    Serial.print("  ");
+
+    Serial.print(" Mode : ");
+    Serial.print(active_flag);
+
+    Serial.print(" center (");
+    mat.SerialPrint(Serial, centerpoint,3);
+
+    Serial.print(" angle (");
+    mat.SerialPrint(Serial, centerangle, 3);
+
+
+
+    Serial.print( "  IMU : ");
+    Serial.print((int8_t)(mpu.KalmanAngle.Pitch));
+    Serial.print( ", ");
+    Serial.print((int8_t)(mpu.KalmanAngle.Yaw));
+    Serial.print("  ");
+    Serial.print((int8_t)(mpu.KalmanAngle.Roll));
+      // Serial.print(" Pitch ");
+      // Serial.print(robotangle[2]);
+    //Serial.print(" tehta (");
+    //mat.SerialPrint(Serial, dotheta);
+    //mat.SerialPrint(Serial, footpoint);
+
+    Serial.println("  ");
+  }
+  #endif
   
-
-  else {
-      ReadCommand_rasp();
-      ReadCommand();
-    if ((millis() - System_Clock) > INTERVAL_MS) {
-      System_Clock = millis();
-
-      switch (active_flag) {
-      case 1:
-        Stay(footpoint, centerpoint, centerangle);
-        for (int i=0;i < 4;i++) {
-          FV[i].x = 0;
-          FV[i].y = 0;
-        }
-        last_active_flag = 1;
-      break;
-      case 2:
-        if (walking_mode == 0) Walking(footpoint, Resetfootpoint);
-        else if (walking_mode == 1 ) Walking2(footpoint, Resetfootpoint);
-        for (int i = 0; i < 3; i++) {
-          centerpoint[i] = CResetcenter[i];
-          centerangle[i] = CResetangle[i];
-        }
-        last_active_flag = 2;
-      break;
-      case 3:
-        Sit(footpoint, centerpoint, centerangle);
-        for (int i=0;i < 4;i++) {
-          FV[i].x = 0;
-          FV[i].y = 0;
-        }
-        last_active_flag = 3;
-      break;
-      case 4:
-        Lie(footpoint, centerpoint, centerangle);
-        for (int i=0;i < 4;i++) {
-          FV[i].x = 0;
-          FV[i].y = 0;
-        }
-        last_active_flag = 4;
-      break;
-      case 0:
-        cont.TurnOffController();
-      break;
-      case 9:
-        cont.TurnOnController();
-        active_flag = last_active_flag;
-      break;
-    }
-
-      kn.calcIK(dotheta, footpoint, centerangle, centerpoint);
-      cont.servoRotate(dotheta);
-    }
-
-    // if (mpu.update()) {
-    //   static uint32_t prev_ms = millis();
-    //   if (millis() > prev_ms + 25) {
-    //       IMU.y = mpu.getYaw();
-    //       IMU.x = mpu.getPitch();
-    //       IMU.z = mpu.getRoll();
-    //       prev_ms = millis();
-    //   }
-    // }
-
-    if ((millis() - Data_clock)> 100) {
-        Data_clock = millis();
-        SendCommand_rasp();
-    }
-    if ((millis() - Debug_Clock) > 100 && DEBUG_MODE) {
-      Debug_Clock = millis();
-
-      Serial.print("  clk : ");
-      Serial.print(real_interval);
-      Serial.print("  ");
-
-      Serial.print("  voltage : ");
-      Serial.print(Voltage());
-      Serial.print("  ");
-
-      Serial.print(" Mode : ");
-      Serial.print(active_flag);
-      //Serial.print(" Mode : ");
-      //Serial.print(last_active_flag);
-
-      Serial.print( "  Forward : ");
-      Serial.print(FV[1].x);
-      Serial.print( "  Side : ");
-      Serial.print(FV[1].y);
-      Serial.print("  ");
-      Serial.print(" center (");
-      mat.SerialPrint(Serial, centerpoint,3);
-
-      Serial.print(" angle (");
-      mat.SerialPrint(Serial, centerangle, 3);
-
-      Serial.print(" status (");
-      for (int i = 0; i < 4; i++) {
-        Serial.print(status[i]);
-        Serial.print(" ");
-      }
-      Serial.print(") ");
-
-      Serial.print( "  IMU : ");
-      Serial.print((int8_t)(IMU.x));
-      Serial.print( ", ");
-      Serial.print((int8_t)(IMU.y));
-      Serial.print("  ");
-      Serial.print((int8_t)(IMU.z));
-        // Serial.print(" Pitch ");
-        // Serial.print(robotangle[2]);
-      //Serial.print(" tehta (");
-      //mat.SerialPrint(Serial, dotheta);
-      //mat.SerialPrint(Serial, footpoint);
-
-      Serial.println("  ");
-    }
-  }
 }
 
 

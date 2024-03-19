@@ -3,7 +3,7 @@
 
 #define pi 3.141592653589793238462643383
 
-Controllers::Controllers(short num)
+Controllers::Controllers()
 {
     setting_ = false;
     // Servo Offset
@@ -36,42 +36,48 @@ Controllers::Controllers(short num)
     for (int i = 0; i < 12; i++)
         _val_list[i] = 0;
 
-    _pca = NULL;
+    driver = NULL;
     sleep = false;
-
-    numServo = num; // set using servo motor num
 }
-
-void Controllers::SetController(Adafruit_PWMServoDriver * driver) {
-    _pca = driver;
-    i2c_mode = true;
+#ifdef _ADAFRUIT_PWMServoDriver_H
+void Controllers::SetController(Adafruit_PWMServoDriver * pca) {
+    driver = pca;
     TurnOffController();
     setting_ = true;
 }
-void Controllers::SetController(int pin[12]) {
-    i2c_mode = false;
-    for (int i = 0; i < 12; i++)
-        pwmservo[i]->attach(pin[i]);
+#endif
+
+#ifdef _Servo12
+void Controllers::SetController(Servo12 *servo12) {
+    driver = servo12;
     TurnOffController();
+    setting_ = true;
 }
+#endif
 
 void Controllers::TurnOffController() {
     if (!setting_) { Serial.println("Before Setting");  return;  }
     if (!sleep) {
-        _pca->sleep();
+        driver->sleep();
         sleep = true;
     }
 }
 void Controllers::TurnOnController() {
     if (!setting_) { Serial.println("Before Setting");   return; }
     if (sleep) {
-        _pca->wakeup();
+        driver->wakeup();
         sleep = false;
     }
 }
 
 int Controllers::getpulse(float theta) {
+    #ifdef _ADAFRUIT_PWMServoDriver_H
     return (int)(theta * 3.05555556 + 100);
+    #endif
+
+    #ifdef _Servo12
+    return (int)(theta * 11.1111111 + 500);
+    #endif
 }
 
 void Controllers::getDegreeAngles(float La[4][3]) {
@@ -193,7 +199,7 @@ void Controllers::servoRotate(float thetas[4][3]) {
         if (_val_list[i] <= 0) {
             _val_list[i] = 0;
         }
-        _pca->setPWM(i, 0, getpulse(_val_list[i]));
+        driver->setPWM(i, 0, getpulse(_val_list[i]));
     }
 }
 void Controllers::servoRotate(short num, float thetas[3]) {
@@ -208,7 +214,7 @@ void Controllers::servoRotate(short num, float thetas[3]) {
         if (_val_list[i+num] <= 0) {
             _val_list[i+num] = 0;
         }
-        _pca->setPWM(i+num, 0, getpulse(_val_list[i]));
+        driver->setPWM(i+num, 0, getpulse(_val_list[i]));
     }
 }
 void Controllers::servoRotate(short num, float theta) {
@@ -222,9 +228,6 @@ void Controllers::servoRotate(short num, float theta) {
     case 7:
     case 8:
         rotate = -1;
-        break;
-    default:
-        rotate - 1;
     }
 
     int _max, _min;
@@ -258,7 +261,7 @@ void Controllers::servoRotate(short num, float theta) {
     if (value > 180) value = 180;
     if (value < 0) value = 0;
 
-    _pca->setPWM(num, 0, getpulse(value));
+    driver->setPWM(num, 0, getpulse(value));
 }
 
 void Controllers::calliservo(short num, float theta) {
@@ -272,9 +275,6 @@ void Controllers::calliservo(short num, float theta) {
     case 7:
     case 8:
         rotate = -1;
-        break;
-    default:
-        rotate - 1;
     }
 
     float value = _servo_offsets[num] + rotate * theta;
@@ -288,5 +288,5 @@ void Controllers::calliservo(short num, float theta) {
         Serial.println("Under 0");
     }
 
-    _pca->setPWM(num, 0, getpulse(value));
+    driver->setPWM(num, 0, getpulse(value));
 }

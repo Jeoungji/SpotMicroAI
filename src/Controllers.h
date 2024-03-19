@@ -1,7 +1,10 @@
 #pragma once
+
+#ifndef _CONTROLLERS
+#define _CONTROLLERS
+
 #include "Arduino.h"
-#include <Adafruit_PWMServoDriver.h>
-#include <PWMServo.h>
+#include "Servo12.h"
 
 class Controllers {
 private:
@@ -9,20 +12,26 @@ private:
     bool setting_;
     bool i2c_mode;
 private:
-    Adafruit_PWMServoDriver * _pca;
-    PWMServo* pwmservo[12];
-
-    short numServo;
+    #ifdef _ADAFRUIT_PWMServoDriver_H
+    Adafruit_PWMServoDriver * driver;
+    #endif
+    #ifdef _Servo12
+    Servo12 * driver;
+    #endif
 
     float _servo_offsets[12];
     float _val_list[12];
     float _thetas[4][3];
     short direction[12];
-public:
-    Controllers(short num);
 
-    void SetController(Adafruit_PWMServoDriver* driver);
-    void SetController(int pin[12]);
+public:
+    Controllers();
+    #ifdef _ADAFRUIT_PWMServoDriver_H
+    void SetController(Adafruit_PWMServoDriver* pca);
+    #endif
+    #ifdef _Servo12
+    void SetController(Servo12 *servo12);
+    #endif
 
     void TurnOffController();
     void TurnOnController();
@@ -44,3 +53,5 @@ public:
 
     void calliservo(short num, float theta);
 };
+
+#endif

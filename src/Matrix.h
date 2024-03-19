@@ -1,4 +1,7 @@
 #pragma once
+#ifndef _MATRIX
+#define _MATRIX
+
 #define N 4
 #include <Arduino.h>
 class Matrix {
@@ -184,3 +187,5 @@ public:
         serial.print(") ");
     }
 };
+
+#endif

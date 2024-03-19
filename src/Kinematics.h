@@ -1,4 +1,8 @@
 #pragma once
+
+#ifndef _KINEMATICS
+#define _KINEMATICS
+
 #include "Arduino.h"
 #include "Matrix.h"
 
@@ -42,3 +46,5 @@ public:
 	//void addL(int num) { setL(getL() + num); }
 	//void addM(int num) { setM(getM() + num); }
 };
+
+#endif
