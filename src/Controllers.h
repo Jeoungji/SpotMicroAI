@@ -5,12 +5,14 @@
 
 #include "Arduino.h"
 #include "Servo12.h"
+#include "Matrix.h"
 
 class Controllers {
 private:
     bool sleep;
     bool setting_;
     bool i2c_mode;
+    Matrix mat;
 private:
     #ifdef _ADAFRUIT_PWMServoDriver_H
     Adafruit_PWMServoDriver * driver;
@@ -28,15 +30,15 @@ public:
     Controllers();
     #ifdef _ADAFRUIT_PWMServoDriver_H
     void SetController(Adafruit_PWMServoDriver* pca);
+    int getpulse(float theta);
     #endif
     #ifdef _Servo12
     void SetController(Servo12 *servo12);
+    float getpulse(float theta);
     #endif
 
     void TurnOffController();
     void TurnOnController();
-
-    int getpulse(float theta);
 
     void getDegreeAngles(float La[4][3]);
     void getDegreeAngles(short num, float La);

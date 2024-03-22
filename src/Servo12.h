@@ -3,14 +3,13 @@
 
 #include <Arduino.h>
 #include <PWMServo.h>
-#include <Servo.h>
 
 // Servo motor class for Using 12channel servo motor in MCU
 
 
 class Servo12 {
 private:
-    Servo *servo[12];
+    PWMServo *servo[12];
     int servo_pin[12];
     int servo_value[12];
 
@@ -19,10 +18,10 @@ private:
 
     bool setting;
 public:
-    Servo12(Servo *ser1, Servo *ser2, Servo *ser3,
-            Servo *ser4, Servo *ser5, Servo *ser6,
-            Servo *ser7, Servo *ser8, Servo *ser9,
-            Servo *ser10, Servo *ser11, Servo *ser12) {
+    Servo12(PWMServo *ser1, PWMServo *ser2, PWMServo *ser3,
+            PWMServo *ser4, PWMServo *ser5, PWMServo *ser6,
+            PWMServo *ser7, PWMServo *ser8, PWMServo *ser9,
+            PWMServo *ser10, PWMServo *ser11, PWMServo *ser12) {
         servo[0] = ser1;
         servo[1] = ser2;
         servo[2] = ser3;
@@ -55,33 +54,39 @@ public:
     void reset() {
         for (int i = 0; i < 12; i++) {
             servo_value[i] = 0;
-            servo[i]->detach();
+            //servo[i]->detach();
             servo[i]->attach(servo_pin[i], min, max);
         }
     }
 
     void sleep() {
-        for (int i = 0; i < 12; i++)
-            servo[i]->detach();
+        // for (int i = 0; i < 12; i++)
+        //     servo[i]->detach();
         setting = false;
     }
 
     void wakeup() {
-        for (int i = 0; i < 12; i++) {
-            servo[i]->attach(servo_pin[i], min, max);
-            servo[i]->writeMicroseconds(servo_value[i]);
-        }
+        // for (int i = 0; i < 12; i++) {
+        //     //servo[i]->attach(servo_pin[i], min, max);
+        //     //servo[i]->writeMicroseconds(servo_value[i]);
+        // }
         setting = true;
     }
 
     uint16_t getPWM(uint8_t num, bool off = false) {
         if (!setting) return 0xFF;
-        return servo[num]->readMicroseconds();
+        return servo[num]->read();
     }
 
     uint8_t setPWM(uint8_t num, uint16_t on, uint16_t off) {
         if (!setting) return 0xFF;
-        servo[num]->writeMicroseconds(off);
+        servo[num]->write(off);
+        return num;
+    }  
+
+    uint8_t setPWM(uint8_t num, float off) {
+        if (!setting) return 0xFF;
+        servo[num]->write(off);
         return num;
     }   
 

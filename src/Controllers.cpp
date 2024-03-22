@@ -45,6 +45,9 @@ void Controllers::SetController(Adafruit_PWMServoDriver * pca) {
     TurnOffController();
     setting_ = true;
 }
+int Controllers::getpulse(float theta) {
+    return (int)(theta * 3.05555556 + 100);
+}
 #endif
 
 #ifdef _Servo12
@@ -53,6 +56,7 @@ void Controllers::SetController(Servo12 *servo12) {
     TurnOffController();
     setting_ = true;
 }
+float Controllers::getpulse(float theta) { return theta; }
 #endif
 
 void Controllers::TurnOffController() {
@@ -70,20 +74,13 @@ void Controllers::TurnOnController() {
     }
 }
 
-int Controllers::getpulse(float theta) {
-    #ifdef _ADAFRUIT_PWMServoDriver_H
-    return (int)(theta * 3.05555556 + 100);
-    #endif
-
-    #ifdef _Servo12
-    return (int)(theta * 11.1111111 + 500);
-    #endif
-}
-
 void Controllers::getDegreeAngles(float La[4][3]) {
     for (int i = 0; i < 4; i++)
         for (int j = 0; j < 3; j++)
             _thetas[i][j] = La[i][j] * 180 / pi;
+    // Serial.print("_thetas : ");
+    // mat.SerialPrint(Serial, _thetas);
+    // Serial.println("");
 }
 void Controllers::getDegreeAngles(short num, float La) {
     if (num < 0 || num > 12) return;
@@ -119,6 +116,9 @@ void Controllers::angleToServo(float La[4][3]) {
             }
         }
     }
+    // Serial.print("_thminmax : ");
+    // mat.SerialPrint(Serial, _thetas);
+    // Serial.println("");
     //FL Lower
     _val_list[0] = _servo_offsets[0] + direction[0] * _thetas[0][2];
     //FL Upper
@@ -189,9 +189,12 @@ void Controllers::getServoAngles(short num, float theta[4][3]) {
 }
 
 void Controllers::servoRotate(float thetas[4][3]) {
+    // Serial.print("dotheta : ");
+    // mat.SerialPrint(Serial, thetas);
+    // Serial.println("");
     if (!setting_) { Serial.println("Before Setting");  return; }
     angleToServo(thetas);
-
+    //Serial.print("valList : ");
     for (int i = 0; i < 12; i++) {
         if (_val_list[i] > 180) {
             _val_list[i] = 180;
@@ -199,8 +202,10 @@ void Controllers::servoRotate(float thetas[4][3]) {
         if (_val_list[i] <= 0) {
             _val_list[i] = 0;
         }
+        //Serial.print(_val_list[i]); Serial.print(" ");
         driver->setPWM(i, 0, getpulse(_val_list[i]));
     }
+    //Serial.println("");
 }
 void Controllers::servoRotate(short num, float thetas[3]) {
     if (!setting_) { Serial.println("Before Setting");  return; }
