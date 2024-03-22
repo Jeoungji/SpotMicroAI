@@ -9,5 +9,3 @@
 ####             : Voltage Sensor
 ####             : FSR // Update later
 #### Motor       : DSSERVO DS3230 PRO 12EA
-
-|IDE|Visual Studio Code PlatformIO|
