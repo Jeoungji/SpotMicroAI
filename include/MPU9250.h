@@ -293,6 +293,10 @@ public: // Kalman Filter
     
     void init_Kalman();
     ANGLE CalKalmanAngle(uint32_t time);
+    float KalmanAnglePitch() {return KalmanAngle.Pitch;}
+    float KalmanAngleYaw() {return KalmanAngle.Yaw;}
+    float KalmanAngleRoll() {return KalmanAngle.Roll;}
+    float *KalmanAngleP() {return &KalmanAngle.Roll;}
 private:
     uint32_t kalmantimes;
 
@@ -303,6 +307,7 @@ private:
     void CarculateAngle(float accel[3]);
     void kalman_1d(float KalmanState, float KalmanUncertainty,
                float KalmanInput, float KalmanMeasurement, float time);
+    
 };
  
 #endif

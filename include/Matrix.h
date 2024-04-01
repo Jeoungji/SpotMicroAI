@@ -4,6 +4,7 @@
 
 #define N 4
 #include <Arduino.h>
+
 class Matrix {
 public:
     void dot(float result[][4], float A[][4], float B[][4])
@@ -121,69 +122,26 @@ public:
                 result[i][j] = A[i][j] + B[i][j];
     }
 
-    void SerialPrint(usb_serial_class &serial, float matrix[4][4]) {
-        serial.print(" (");
-        for (int i = 0; i < 4; i++) {
-            serial.print("(");
-            for (int j = 0; j < 4; j++) {
-                serial.print(matrix[i][j]);
-                serial.print(", ");
-            }
-            serial.print("), ");
-        }
-        serial.print(") ");
-    }
-    void SerialPrint(usb_serial_class &serial, float matrix[4][3]) {
-        serial.print(" (");
-        for (int i = 0; i < 4; i++) {
-            serial.print("(");
-            for (int j = 0; j < 3; j++) {
-                serial.print(matrix[i][j]);
-                serial.print(", ");
-            }
-            serial.print("), ");
-        }
-        serial.print(") ");
-    }
-    void SerialPrint(usb_serial_class &serial, float *matrix, int size) {
-        serial.print(" (");
+    void SerialPrint(usb_serial_class &serial, float *matrix, int size = 0) {
+        if (size == 0) return;
+        serial.print("(");
         for (int i = 0; i < size; i++) {
-            serial.print(matrix[i]);
+            serial.print(*(matrix +i));
             serial.print(", ");
         }
+        serial.print("), ");
+    }
+    void SerialPrint(usb_serial_class &serial, float matrix[4][4]) {
+        serial.print(" (");
+        for (int i = 0; i < 4; i++)
+            this->SerialPrint(serial, matrix[i], 3);
         serial.print(") ");
     }
 
-    void SerialPrint(HardwareSerial &serial, float matrix[4][4]) {
+    void SerialPrint(usb_serial_class &serial, float matrix[4][3]) {
         serial.print(" (");
-        for (int i = 0; i < 4; i++) {
-            serial.print("(");
-            for (int j = 0; j < 4; j++) {
-                serial.print(matrix[i][j]);
-                serial.print(", ");
-            }
-            serial.print("), ");
-        }
-        serial.print(") ");
-    }
-    void SerialPrint(HardwareSerial &serial, float matrix[4][3]) {
-        serial.print(" (");
-        for (int i = 0; i < 4; i++) {
-            serial.print("(");
-            for (int j = 0; j < 3; j++) {
-                serial.print(matrix[i][j]);
-                serial.print(", ");
-            }
-            serial.print("), ");
-        }
-        serial.print(") ");
-    }
-    void SerialPrint(HardwareSerial &serial, float *matrix, int size) {
-        serial.print(" (");
-        for (int i = 0; i < size; i++) {
-            serial.print(matrix[i]);
-            serial.print(", ");
-        }
+        for (int i = 0; i < 4; i++)
+            this->SerialPrint(serial, matrix[i], 3);
         serial.print(") ");
     }
 };

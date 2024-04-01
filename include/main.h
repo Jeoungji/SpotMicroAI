@@ -23,10 +23,11 @@
 
 #endif
 
-#define VSENSOR 41
+#define VSENSOR 27
 #define MPOWER  29
 #define INTERVAL_MS     10
 #define pi 3.141592653589793238462643383
+
 
 typedef struct Bfloat {
     bool ok;

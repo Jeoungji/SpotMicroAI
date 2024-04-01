@@ -3,7 +3,6 @@
 #ifndef _FILTER
 #define _FILTER
 
-#include <Arduino.h>
 #define AVERAGEFILTERSIZE 200
 
 class MovingAverageFilter{
@@ -44,7 +43,7 @@ public:
         if (curretdatasize == size) return true;
         return false;
     }
-    uint16_t MovingAverageFilter::Size() { return curretdatasize; }
+    uint16_t Size() { return curretdatasize; }
 };
 
 #endif

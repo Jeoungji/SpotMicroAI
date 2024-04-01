@@ -66,9 +66,12 @@ void Kinematic::legIK(float returns[3], float point[4]) /* 3 float, 3 float */
 
 	float D = (pow(H, 2) - pow(l3, 2) - pow(l4, 2)) / (2 * l3 * l4);
 
-	if (D > 1 || D < -1) {
+	if (D > 1) {
 		returns[2] = 0;
-		Serial.print(" acos error");
+		Serial.println(" acos error D > 1");
+	} else if (D < -1) {
+		returns[2] = PI;
+		Serial.println(" acos error D <-1");
 	}
 	else returns[2] = acos(D);
 
