@@ -131,6 +131,15 @@ public:
         }
         serial.print("), ");
     }
+    void SerialPrint(usb_serial_class &serial, uint16_t *matrix, int size = 0) {
+        if (size == 0) return;
+        serial.print("(");
+        for (int i = 0; i < size; i++) {
+            serial.print(*(matrix +i));
+            serial.print(", ");
+        }
+        serial.print("), ");
+    }
     void SerialPrint(usb_serial_class &serial, float matrix[4][4]) {
         serial.print(" (");
         for (int i = 0; i < 4; i++)

@@ -1,6 +1,6 @@
 #include <main.h>
 
-#define SPI_CLOCK 8000000  // 8MHz clock works.
+#define SPI_CLOCK 5000000  // 8MHz clock works.
 #define SS_PIN   37 
 
 #define CHECKER 65
@@ -67,8 +67,10 @@ Controllers cont;
 Kinematic kn;
 Matrix mat;
 MPU9250 mpu(&SPI, SPI_CLOCK, SS_PIN);
-SpotMicro robot;
+SpotMicro robot(MPOWER);
 PointState State;
+
+void ReadCommand();
 
 void FV_Check() {
   for (int i =0;i < 4; i++) {
@@ -77,149 +79,6 @@ void FV_Check() {
 
     if (FV[i].y > 50) FV[i].y = 50;
     else if (FV[i].y < -50) FV[i].y = -50;
-  }
-}
-
-void ReadCommand() {
-  char command = 0;
-  if (Serial.available()) command = Serial.read();
-  else return;
-
-  switch (command) {
-    // XYZ
-    case 'k':
-    State.centerpoint[2] += 1;
-    break;
-    case ';':
-    State.centerpoint[2] -= 1;
-    break;
-    case 'o':
-    State.centerpoint[0] += 1;
-    break;
-    case 'l':
-    State.centerpoint[0] -= 1;
-    break;
-    case 'p':
-    State.centerpoint[1] += 1;
-    break;
-    case 'i':
-    State.centerpoint[1] -= 1;
-    break;
-
-    // ABR
-    case 'y':
-    State.centerangle[2] += pi / 180 * 1;
-    break;
-    case 'h':
-    State.centerangle[2] -= pi / 180 *1;
-    break;
-    case 'g':
-    State.centerangle[0] += pi / 180 *1;
-    break;
-    case 'j':
-    State.centerangle[0] -= pi / 180 *1;
-    break;
-    case 'u':
-    State.centerangle[1] += pi / 180 *1;
-    break;
-    case 't':
-    State.centerangle[1] -= pi / 180 *1;
-    break;
-
-    // Walk
-    case 'w':
-    if (active_flag != 2) break;
-    for (int i=0;i < 4; i++) FV[i].x += 5;
-    FV_Check();
-    break;
-    case 's':
-    if (active_flag != 2) break;
-    for (int i=0;i < 4;i++) FV[i].x -= 5;
-    FV_Check();
-    break;
-    case 'd':
-    if (active_flag != 2) break;
-    for (int i=0;i < 4;i++) FV[i].y -= 5;
-    FV_Check();
-    break;
-    case 'a':
-    if (active_flag != 2) break;
-    for (int i=0;i < 4;i++) FV[i].y += 5;
-    FV_Check();
-    break;
-    case 'e':
-    if (active_flag != 2) break;
-    FV[0].x += 2;
-    FV[0].y -= 4;
-
-    FV[1].x -= 2;
-    FV[1].y -= 4;
-
-    FV[2].x += 2;
-    FV[2].y += 4;
-
-    FV[3].x -= 2;
-    FV[3].y += 4;
-    FV_Check();
-    break;
-    case 'q':
-    if (active_flag != 2) break;
-    FV[0].x -= 2;
-    FV[0].y += 4;
-
-    FV[1].x += 2;
-    FV[1].y += 4;
-
-    FV[2].x -= 2;
-    FV[2].y -= 4;
-
-    FV[3].x += 2;
-    FV[3].y -= 4;
-    FV_Check();
-    break;
-    case ' ':
-    for (int i=0;i < 4;i++) {
-      FV[i].x = 0;
-      FV[i].y = 0;
-    }
-    break;
-    case 'z':
-      dotheta[0][0] = dotheta[0][0] + 0.01;
-    break;
-    case 'x':
-      dotheta[0][0] = dotheta[0][0] - 0.01;
-    break;
-    case 'r':
-    for (int i = 0; i < 3; i++) {
-      CResetcenter[i] = Resetcenter[i];
-      CResetangle[i] = Resetangle[i];
-    }
-    break;
-    case '1':
-      robot.Set_mode(1);
-    break;
-    case '2':
-      robot.Set_mode(2);
-    break;
-    case '3':
-      robot.Set_mode(3);
-    break;
-    case '4':
-      robot.Set_mode(4);
-    break;
-    case '5':
-      if (walking_mode == 0) walking_mode = 1;
-      else if (walking_mode == 1) walking_mode = 0;
-    break;
-
-    case '0':
-      active_flag = 0;
-      digitalWriteFast(MPOWER, LOW);
-    break;
-    case '9':
-      robot.Set_mode(9);
-      digitalWriteFast(MPOWER, HIGH);
-    break;
   }
 }
 
@@ -349,81 +208,278 @@ void Walking2 (float point[4][4], float Set[4][4]) {
 
 
 void setup() {
-  robot.SetVoltage(VSENSOR);
+  //robot.SetVoltage(VSENSOR);
 
-  if (!driver.begin(servopin, 500, 2500)) 
-    while(1) {
-      Serial.println("driver set error");
-      delay(5000);
-    }
-  cont.SetController(&driver);
-  Serial.begin(115200);
+  // if (!driver.begin(servopin, 500, 2500)) 
+  //   while(1) {
+  //     Serial.println("driver set error");
+  //     delay(5000);
+  //   }
+  // cont.SetController(&driver);
+  Serial.begin(250000);
 
 	while(mpu.auto_init() > 0) {
     Serial.println("mpu set error");
     delay(5000);
   }
-  //WAITFORINPUT();
+  WAITFORINPUT();
   
-  robot.Initialization();
-  delay(1000);
-  Serial.println("start");
+  // robot.Initialization();
+  // delay(1000);
+  // Serial.println("start");
+  //mpu.MeaurementAccelBias(1000);
 }
+
+// void loop() {
+//   real_interval = millis()-main_clk;
+//   main_clk = millis();  
+//   ReadCommand();
+
+//   robot.SensingVoltage(true);
+
+//   if ((millis() - System_Clock) >= INTERVAL_MS) {
+//     System_Clock = millis();
+//     mpu.CalKalmanAngle(millis());
+//     robot.imux = mpu.KalmanAngle.Roll;
+//     robot.imuy = mpu.KalmanAngle.Pitch;
+//     robot.Activate(State);
+//     kn.calcIK(dotheta, State.footpoint, State.centerangle, State.centerpoint);
+//     cont.servoRotate(dotheta);
+//   }
+
+//   #if DEBUGING == 1
+//   if ((millis() - Debug_Clock) > DEBUG_MS) {
+//     Debug_Clock = millis();
+
+//     Serial.print("  clk : ");
+//     Serial.print(real_interval);
+//     Serial.print("  ");
+
+//     // // Serial.print("  v : ");
+//     // // Serial.print(voltage);
+//     // // Serial.print("  ");
+
+//     Serial.print(" Mode : ");
+//     Serial.print(robot.Get_mode());
+
+//     // mat.SerialPrint(Serial, dotheta);
+
+
+//     Serial.print( "  IMU : ");
+//     Serial.print((mpu.KalmanAngle.Pitch));
+//     Serial.print( ", ");
+//     // Serial.print((int8_t)(mpu.KalmanAngle.Yaw));
+//     Serial.print("  ");
+//     Serial.print((mpu.KalmanAngle.Roll));
+//       // Serial.print(" Pitch ");
+//       // Serial.print(robotangle[2]);
+//     //Serial.print(" tehta (");
+//     //mat.SerialPrint(Serial, dotheta);
+//     //mat.SerialPrint(Serial, footpoint);
+//     Serial.print("  ");
+//     robot.PrintData(XYZ_);
+//     robot.PrintData(ABR_);
+//     robot.PrintData(POINT_);
+
+//     Serial.println("  ");
+//   }
+//   #endif
+  
+// }
 
 void loop() {
-  real_interval = millis()-main_clk;
-  main_clk = millis();  
-  ReadCommand();
+  mpu.CalKalmanAngle(millis());
+  //Serial.printf("%f, %f, %f\n", mpu.accel_data[0], mpu.accel_data[1], mpu.accel_data[2]);
+  delay(3);
+  Serial.print( "  IMU : ");
+  // Serial.print((mpu.accelangle.Pitch));
+  // Serial.print( ", ");
+  // Serial.print((mpu.accelangle.Roll));
+  // Serial.print( ", ");
+  // Serial.print((mpu.accelangle.Yaw));
+  // Serial.print( ",   ");
+  // Serial.print((mpu.gyroangle.Pitch));
+  // Serial.print( ", ");
+  // Serial.print((mpu.gyroangle.Roll));
+  // Serial.print( ", ");
+  // Serial.print((mpu.gyroangle.Yaw));
+  // Serial.print( ",   ");
+  Serial.print((mpu.KalmanAngle.Pitch));
+  Serial.print( ", ");
+  Serial.print((mpu.KalmanAngle.Roll));
+  Serial.print( ", ");
+  Serial.println((mpu.KalmanAngle.Yaw));
 
-  robot.SensingVoltage(true);
+  // Serial.print((mpu.accel_lowdata[0]));
+  // Serial.print( ", ");
+  // Serial.print((mpu.accel_lowdata[1]));
+  // Serial.print( ", ");
+  // Serial.print((mpu.accel_lowdata[2]));
+  // Serial.print( ",  ");
+  // Serial.print((mpu.accel_data[0]));
+  // Serial.print( ", ");
+  // Serial.print((mpu.accel_data[1]));
+  // Serial.print( ", ");
+  // Serial.println((mpu.accel_data[2]));
 
-  if ((millis() - System_Clock) >= INTERVAL_MS) {
-    System_Clock = millis();
-
-    mpu.CalKalmanAngle(millis());
-    robot.Activate(State);
-    kn.calcIK(dotheta, State.footpoint, State.centerangle, State.centerpoint);
-    cont.servoRotate(dotheta);
-  }
-
-  #if DEBUGING == 1
-  if ((millis() - Debug_Clock) > 100) {
-    Debug_Clock = millis();
-
-    Serial.print("  clk : ");
-    Serial.print(real_interval);
-    Serial.print("  ");
-
-    // // Serial.print("  v : ");
-    // // Serial.print(voltage);
-    // // Serial.print("  ");
-
-    Serial.print(" Mode : ");
-    Serial.print(robot.Get_mode());
-
-    // mat.SerialPrint(Serial, dotheta);
-
-
-    // Serial.print( "  IMU : ");
-    // Serial.print((int8_t)(mpu.KalmanAngle.Pitch));
-    // Serial.print( ", ");
-    // Serial.print((int8_t)(mpu.KalmanAngle.Yaw));
-    // Serial.print("  ");
-    // Serial.print((int8_t)(mpu.KalmanAngle.Roll));
-      // Serial.print(" Pitch ");
-      // Serial.print(robotangle[2]);
-    //Serial.print(" tehta (");
-    //mat.SerialPrint(Serial, dotheta);
-    //mat.SerialPrint(Serial, footpoint);
-    Serial.print("  ");
-    robot.PrintData(XYZ_);
-    robot.PrintData(ABR_);
-    robot.PrintData(POINT_);
-
-    Serial.println("  ");
-  }
-  #endif
+  // Serial.print( ", ");
+  // Serial.print((mpu.gyro_data[0]));
+  // Serial.print( ", ");
+  // Serial.print((mpu.gyro_data[1]));
+  // Serial.print( ", ");
+  // Serial.println((mpu.gyro_data[2]));
   
 }
 
 
+void ReadCommand() {
+  char command = 0;
+  if (Serial.available()) command = Serial.read();
+  else return;
+
+  PointState state;
+  robot.ReadSetState(&state);
+
+  switch (command) {
+    // XYZ
+    case 'k':
+    state.centerpoint[2] += 1;
+    break;
+    case ';':
+    state.centerpoint[2] -= 1;
+    break;
+    case 'o':
+    state.centerpoint[0] += 1;
+    break;
+    case 'l':
+    state.centerpoint[0] -= 1;
+    break;
+    case 'p':
+    state.centerpoint[1] += 1;
+    break;
+    case 'i':
+    state.centerpoint[1] -= 1;
+    break;
+
+    // ABR
+    case 'y':
+    state.centerangle[2] += pi / 180 * 1;
+    break;
+    case 'h':
+    state.centerangle[2] -= pi / 180 *1;
+    break;
+    case 'g':
+    state.centerangle[0] += pi / 180 *1;
+    break;
+    case 'j':
+    state.centerangle[0] -= pi / 180 *1;
+    break;
+    case 'u':
+    state.centerangle[1] += pi / 180 *1;
+    break;
+    case 't':
+    state.centerangle[1] -= pi / 180 *1;
+    break;
+
+    case '8':
+    state= robot.Stay;
+    break;
+
+    // Walk
+    case 'w':
+    if (active_flag != 2) break;
+    for (int i=0;i < 4; i++) FV[i].x += 5;
+    FV_Check();
+    break;
+    case 's':
+    if (active_flag != 2) break;
+    for (int i=0;i < 4;i++) FV[i].x -= 5;
+    FV_Check();
+    break;
+    case 'd':
+    if (active_flag != 2) break;
+    for (int i=0;i < 4;i++) FV[i].y -= 5;
+    FV_Check();
+    break;
+    case 'a':
+    if (active_flag != 2) break;
+    for (int i=0;i < 4;i++) FV[i].y += 5;
+    FV_Check();
+    break;
+    case 'e':
+    if (active_flag != 2) break;
+    FV[0].x += 2;
+    FV[0].y -= 4;
+
+    FV[1].x -= 2;
+    FV[1].y -= 4;
+
+    FV[2].x += 2;
+    FV[2].y += 4;
+
+    FV[3].x -= 2;
+    FV[3].y += 4;
+    FV_Check();
+    break;
+    case 'q':
+    if (active_flag != 2) break;
+    FV[0].x -= 2;
+    FV[0].y += 4;
+
+    FV[1].x += 2;
+    FV[1].y += 4;
+
+    FV[2].x -= 2;
+    FV[2].y -= 4;
+
+    FV[3].x += 2;
+    FV[3].y -= 4;
+    FV_Check();
+    break;
+    case ' ':
+    for (int i=0;i < 4;i++) {
+      FV[i].x = 0;
+      FV[i].y = 0;
+    }
+    break;
+    case 'z':
+      dotheta[0][0] = dotheta[0][0] + 0.01;
+    break;
+    case 'x':
+      dotheta[0][0] = dotheta[0][0] - 0.01;
+    break;
+    case 'r':
+    for (int i = 0; i < 3; i++) {
+      CResetcenter[i] = Resetcenter[i];
+      CResetangle[i] = Resetangle[i];
+    }
+    break;
+    case '1':
+      robot.Set_mode(1);
+    break;
+    case '2':
+      robot.Set_mode(2);
+    break;
+    case '3':
+      robot.Set_mode(3);
+    break;
+    case '4':
+      robot.Set_mode(4);
+    break;
+    case '5':
+      if (walking_mode == 0) walking_mode = 1;
+      else if (walking_mode == 1) walking_mode = 0;
+    break;
+    case '6':
+      robot.Set_mode(6);
+    break;
+
+    case '0':
+      robot.powerOFF();
+      break;
+    case '9':
+      robot.powerON();
+    break;
+  }
+  robot.InputState(state);
+}

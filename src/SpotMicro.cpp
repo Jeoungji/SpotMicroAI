@@ -14,6 +14,7 @@ SpotMicro::SpotMicro(int power)
         pinMode(this->power_pin, OUTPUT);
         digitalWrite(this->power_pin, LOW);
     }
+    set = Stay;
 }
 
 bool SpotMicro::Initialization() {
@@ -38,11 +39,35 @@ bool SpotMicro::ForcedInputState(PointState state) {
     if (!_init_) return false;
     for (int i = 0; i < 4; i++)
         for(int j = 0; j < 4; j++)
+            current.footpoint[i][j] = state.footpoint[i][j];
+    for (int i = 0; i < 3; i++) {
+        current.centerpoint[i] = state.centerpoint[i];
+        current.centerangle[i] = state.centerangle[i];
+    }
+    return true;
+}
+
+bool SpotMicro::InputState(PointState state) {
+    if (!_init_) return false;
+    for (int i = 0; i < 4; i++)
+        for(int j = 0; j < 4; j++)
             set.footpoint[i][j] = state.footpoint[i][j];
     for (int i = 0; i < 3; i++) {
         set.centerpoint[i] = state.centerpoint[i];
         set.centerangle[i] = state.centerangle[i];
     }
+    return true;
+}
+
+bool SpotMicro::ReadSetState(PointState *state) {
+    if (!_init_) return false;
+    memcpy(state, &set, sizeof(PointState));
+    return true;
+}
+
+bool SpotMicro::ReadCurrentState(PointState *state) {
+    if (!_init_) return false;
+    memcpy(state, &current, sizeof(PointState));
     return true;
 }
 
@@ -53,19 +78,19 @@ bool SpotMicro::VelocityInputState(const float *state, char coordinate, float ve
     if (coordinate == XYZ_) {
         if (velocity == 0 || velocity > body_max_v) 
             velocity = body_max_v;
-        set_ = set.centerpoint;
+        set_ = current.centerpoint;
         i_ = 1;
     }
     else if (coordinate == ABR_) {
         if (velocity == 0 || velocity > body_max_w) 
             velocity = body_max_w;
-        set_ = set.centerangle;
+        set_ = current.centerangle;
         i_ = 1;
     }
     else if (coordinate == POINT_) {
         if (velocity == 0 || velocity > foot_max_v) 
             velocity = foot_max_v;
-        set_ = set.footpoint[0];
+        set_ = current.footpoint[0];
         i_ = 4;
     }
     else return false;
@@ -122,32 +147,58 @@ float SpotMicro::SensingVoltage(bool autoOFF) {
 
 bool SpotMicro::Set_mode(uint8_t s_movingstatus) {
     if (!_init_) return false;
+    uint16_t sum;
     switch (movingstatus) {
     case 1: // stay
         break;
     case 2: // walk
         if (s_movingstatus == 3) return false;
         if (s_movingstatus == 4) return false;
+        sum = walkingtime[0] + walkingtime[1] + walkingtime[2] + walkingtime[3];
+        foottimer[0] = 0;
+        foottimer[1] = sum/2;
+        foottimer[2] = sum/2;
+        foottimer[3] = 0;
         break;
     case 3: // sit
     case 4: // lie
         if (s_movingstatus == 2) return false;
         break;
+    case 6:
+    break;
     }
     movingstatus = s_movingstatus;
     return true;
 }
 
+void SpotMicro::Balancing(float p) {
+    PointState _current;
+    ReadCurrentState(&_current);
+    float error = - imuy;
+    if (error > 5*PI/180 || error < -5*PI/180)
+    set.centerangle[2] = _current.centerangle[2] + p*error;
+
+    error = - imux;
+    if (error > 5*PI/180 || error < -5*PI/180)
+    set.centerangle[0] = _current.centerangle[0] + p*error;
+}
+
 void SpotMicro::Activate(PointState &state) {
     if (!_init_) return;
     dt = ((float)(millis() - l_time)) / 1000;
-    
+    int16_t d2[4] = {0,0,0,0};
     switch (movingstatus) {
     case 1:
-        if (VelocityInputState(Stay.centerangle, ABR_, 0.5)) {
-            VelocityInputState(*Stay.footpoint, POINT_, 800);
-            VelocityInputState(Stay.centerpoint, XYZ_, 10);
+        if (VelocityInputState(set.centerangle, ABR_, 0.5)) {
+            VelocityInputState(*set.footpoint, POINT_, 400);
+            VelocityInputState(set.centerpoint, XYZ_, 100);
         }
+        break;
+    case 2:
+        Balancing(0.001);
+        VelocityInputState(set.centerangle, ABR_, 1);
+        VelocityInputState(set.centerpoint, XYZ_, 100);
+        Walking(d2);
         break;
     case 3:
         VelocityInputState(*Sit.footpoint, POINT_, 800);
@@ -155,66 +206,82 @@ void SpotMicro::Activate(PointState &state) {
         VelocityInputState(Sit.centerangle, ABR_, 1.);
         break;
     case 4:
-        if (VelocityInputState(Lie.centerangle, ABR_, 0.1))
-            if (VelocityInputState(Lie.centerpoint, XYZ_, 10))
-                VelocityInputState(*Lie.footpoint, POINT_, 500);
+        if (VelocityInputState(Lie.centerangle, ABR_, 0.5))
+            if (VelocityInputState(Lie.centerpoint, XYZ_, 100))
+                VelocityInputState(*Lie.footpoint, POINT_, 300);
+        break;
+    case 6:
+        Balancing(0.0005);
+        VelocityInputState(set.centerangle, ABR_, 1);
         break;
     }
 
+
+
     for (int i = 0; i < 4; i++)
         for (int j = 0; j < 4; j++)
-            state.footpoint[i][j] = set.footpoint[i][j];
+            state.footpoint[i][j] = current.footpoint[i][j];
     for (int i = 0; i < 3; i++) {
-        state.centerangle[i] = set.centerangle[i];
-        state.centerpoint[i] = set.centerpoint[i];
+        state.centerangle[i] = current.centerangle[i];
+        state.centerpoint[i] = current.centerpoint[i];
     }
     l_time = millis();
 }
 
 void SpotMicro::Shift(const uint8_t leg, float Stime, int t){
     if (leg == 0 || leg == 1)
-        set.footpoint[leg][0] = -(Walkvector[leg].x / 2)* cos(Stime * pi / t) + A_X;
+        current.footpoint[leg][0] = -(Walkvector[leg].x / 2)* cos(Stime * pi / t) + A_X;
     else
-        set.footpoint[leg][0] = -(Walkvector[leg].x / 2)* cos(Stime * pi / t) - A_X;
+        current.footpoint[leg][0] = -(Walkvector[leg].x / 2)* cos(Stime * pi / t) - A_X;
 
     if (leg == 0 || leg == 2)
-        set.footpoint[leg][2] = -(Walkvector[leg].y / 2)* cos(Stime * pi / t) + A_Z;
+        current.footpoint[leg][2] = -(Walkvector[leg].y / 2)* cos(Stime * pi / t) + A_Z;
     else
-        set.footpoint[leg][2] = -(Walkvector[leg].y / 2)* cos(Stime * pi / t) - A_Z;
+        current.footpoint[leg][2] = -(Walkvector[leg].y / 2)* cos(Stime * pi / t) - A_Z;
 
-    set.footpoint[leg][1] = -A_H + ( Walkvector[leg].z* sin(Stime * pi / t));
+    current.footpoint[leg][1] = -A_H + ( Walkvector[leg].z* sin(Stime * pi / t));
 }
 
 void SpotMicro::Pull(uint8_t leg, float Stime, int t) {
   if (leg == 0 || leg == 1)
-    set.footpoint[leg][0] = (Walkvector[leg].x / 2)* cos(Stime * pi / t) + A_X;
+    current.footpoint[leg][0] = (Walkvector[leg].x / 2)* cos(Stime * pi / t) + A_X;
   else
-    set.footpoint[leg][0] = (Walkvector[leg].x / 2)* cos(Stime * pi / t) - A_X;
+    current.footpoint[leg][0] = (Walkvector[leg].x / 2)* cos(Stime * pi / t) - A_X;
 
   if (leg == 0 || leg == 2)
-    set.footpoint[leg][2] = (Walkvector[leg].y / 2)* cos(Stime * pi / t) + A_Z;
+    current.footpoint[leg][2] = (Walkvector[leg].y / 2)* cos(Stime * pi / t) + A_Z;
   else
-    set.footpoint[leg][2] = (Walkvector[leg].y / 2)* cos(Stime * pi / t) - A_Z;
+    current.footpoint[leg][2] = (Walkvector[leg].y / 2)* cos(Stime * pi / t) - A_Z;
 }
 
-void SpotMicro::Walking (int16_t walkingtime[4]) {
+void SpotMicro::Walking (int16_t walkTime[4]) {
+    //Serial.print(" walk ");
     for (int i = 0; i < 4; i++) {
-        foottimer[i] += INTERVAL_MS;
+        foottimer[i] += (uint16_t)(dt*1000);
         if (foottimer[i] <= walkingtime[0]) { // pull
-            Shift(i, foottimer[i], walkingtime[0]);
+            //Serial.print("A ");
+        }
+        else if (foottimer[i] -walkingtime[0] <= walkingtime[1]) {
+            uint16_t wd = walkingtime[0];
+            Shift(i, foottimer[i]-wd, walkingtime[1]);
+            //Serial.print("B ");
         }
         else if (foottimer[i] - walkingtime[0] - walkingtime[1]
                  <= walkingtime[2]) {
-            //Serial.print("stay2");
+            //Serial.print("C ");
         }
         else if (foottimer[i] - walkingtime[0] - walkingtime[1] - walkingtime[2]
                  <= walkingtime[3]) { // shift
-            Pull(i,  foottimer[i] - walkingtime[0], walkingtime[1]);
+            uint16_t wd = walkingtime[0] + walkingtime[1] + walkingtime[2];
+            Pull(i,  foottimer[i] - wd, walkingtime[3]);
+            //Serial.print("D ");
         }
         else {
             foottimer[i] = 0;
         }
     }
+    // mat.SerialPrint(Serial, foottimer, 4);
+    // Serial.println(" ");
 }
 
 void SpotMicro::Set_Walking_mode(uint8_t mode) {
@@ -236,13 +303,13 @@ void SpotMicro::Set_Walking_mode(uint8_t mode) {
 void SpotMicro::PrintData(char data) { 
     switch (data) {
     case XYZ_:
-        mat.SerialPrint(Serial, set.centerpoint, 3);  
+        mat.SerialPrint(Serial, current.centerpoint, 3);  
         break;
     case ABR_:
-        mat.SerialPrint(Serial, set.centerangle, 3);  
+        mat.SerialPrint(Serial, current.centerangle, 3);  
         break;
     case POINT_:
-        mat.SerialPrint(Serial, set.footpoint);  
+        mat.SerialPrint(Serial, current.footpoint);  
         break;
     }
 }

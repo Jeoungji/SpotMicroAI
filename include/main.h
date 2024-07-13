@@ -14,7 +14,6 @@
 
 // All Debug Control
 #define DEBUGING        1
-
 #define MPU9250DEBUG    1
 
 #if DEBUGING == 0
@@ -25,7 +24,8 @@
 
 #define VSENSOR 27
 #define MPOWER  29
-#define INTERVAL_MS     10
+#define INTERVAL_MS     3
+#define DEBUG_MS     10
 #define pi 3.141592653589793238462643383
 
 

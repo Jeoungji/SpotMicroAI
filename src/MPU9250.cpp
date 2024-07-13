@@ -31,6 +31,14 @@ bool MPU9250::WriteReg( uint8_t WriteAddr, uint8_t WriteData )
         #endif
         return false;
     }
+    #if MPU9250DEBUG==1
+            Serial.print("success MPU9250 Write : Addr ");
+            Serial.print(WriteAddr,HEX);
+            Serial.print(" setting ");
+            Serial.print(WriteData,HEX);
+            Serial.print(" setted ");
+            Serial.println(read,HEX);
+        #endif
     delayMicroseconds(1000);
     return true;
 }
@@ -85,15 +93,15 @@ bool MPU9250::init(bool calib_gyro, bool calib_acc){
 #endif
     float temp[3];
 
-    if(calib_gyro && calib_acc){
-        calibrate(g_bias, a_bias);
-    }
-    else if(calib_gyro){
-        calibrate(g_bias, temp);
-    }
-    else if(calib_acc){
-        calibrate(temp, a_bias);
-    }
+    // if(calib_gyro && calib_acc){
+    //     calibrate(g_bias, a_bias);
+    // }
+    // else if(calib_gyro){
+    //     calibrate(g_bias, temp);
+    // }
+    // else if(calib_acc){
+    //     calibrate(temp, a_bias);
+    // }
     
     uint8_t i = 0;
     uint8_t MPU_Init_Data[MPU_InitRegNum][2] = {
@@ -171,20 +179,38 @@ int MPU9250::auto_init(uint8_t AccelScale, uint8_t GyroScale) {
     set_acc_scale(AccelScale);
     set_gyro_scale(GyroScale);
 
-    if (!accel_calibrate(100))  {
-        #if MPU9250DEBUG==1
-		Serial.println("FAIL MPU9250 accel_calibrate: ");
-        #endif
-        return 2;
-    }
-    //delay(10);
-    calib_acc();
+    // if (!accel_calibrate(100))  {
+    //     #if MPU9250DEBUG==1
+	// 	Serial.println("FAIL MPU9250 accel_calibrate: ");
+    //     #endif
+    //     return 2;
+    // }
+    delay(10);
+
     if (!gyro_calibrate(100)) {
         #if MPU9250DEBUG==1
 		Serial.println("FAIL MPU9250 gyro_calibrate: ");
         #endif
         return 3;
     }
+    
+
+    a_bias[0] = -2.912699951;
+    a_bias[1] = -2.819949951;
+    a_bias[2] = -4.931109863;
+
+    a_scale[0] = 1;///1.00319415;
+    a_scale[1] = 1/0.9982455;
+    a_scale[2] = 1/0.998812;
+
+    delay(500);
+    if (!accelangle_calibrate(100)) {
+        #if MPU9250DEBUG==1
+		Serial.println("FAIL MPU9250 accel_angle_calibrate: ");
+        #endif
+        return 4;
+    }
+
     delay(10);
     return 0;
 }
@@ -304,8 +330,8 @@ void MPU9250::read_acc()
     ReadRegs(MPUREG_ACCEL_XOUT_H,response,6);
     for(i = 0; i < 3; i++) {
         bit_data = ((int16_t)response[i*2]<<8)|response[i*2+1];
-        accel_lowdata[i] = (float)bit_data;
-        accel_data[i] = (accel_lowdata[i]/acc_divider) - a_bias[i];
+        accel_lowdata[i] = (float)bit_data/acc_divider;
+        accel_data[i] = ((accel_lowdata[i]) - a_bias[i]) * a_scale[i];
     }
 }
 
@@ -364,7 +390,7 @@ void MPU9250::calib_acc()
     //ENABLE SELF TEST need modify
     //temp_scale=WriteReg(MPUREG_ACCEL_CONFIG, 0x80>>axis);
 
-    ReadRegs(MPUREG_SELF_TEST_X,response,4);
+    ReadRegs(MPUREG_SELF_TEST_XA,response,4);
     calib_data[0] = ((response[0]&11100000)>>3) | ((response[3]&00110000)>>4);
     calib_data[1] = ((response[1]&11100000)>>3) | ((response[3]&00001100)>>2);
     calib_data[2] = ((response[2]&11100000)>>3) | ((response[3]&00000011));
@@ -466,12 +492,12 @@ void MPU9250::calibrate(float *dest1, float *dest2){
     data[5] = (-gyro_bias[2]/4)       & 0xFF;
   
     // Push gyro biases to hardware registers
-    WriteReg(MPUREG_XG_OFFS_USRH, data[0]);
-    WriteReg(MPUREG_XG_OFFS_USRL, data[1]);
-    WriteReg(MPUREG_YG_OFFS_USRH, data[2]);
-    WriteReg(MPUREG_YG_OFFS_USRL, data[3]);
-    WriteReg(MPUREG_ZG_OFFS_USRH, data[4]);
-    WriteReg(MPUREG_ZG_OFFS_USRL, data[5]);
+    WriteReg(MPUREG_XG_OFFS_H, data[0]);
+    WriteReg(MPUREG_XG_OFFS_L, data[1]);
+    WriteReg(MPUREG_YG_OFFS_H, data[2]);
+    WriteReg(MPUREG_YG_OFFS_L, data[3]);
+    WriteReg(MPUREG_ZG_OFFS_H, data[4]);
+    WriteReg(MPUREG_ZG_OFFS_L, data[5]);
   
     // Output scaled gyro biases for display in the main program
     dest1[0] = (float) gyro_bias[0]/(float) gyrosensitivity;  
@@ -580,12 +606,12 @@ bool MPU9250::accel_calibrate(int sample) {
 
 bool MPU9250::gyro_calibrate(int sample) {
 
-    WriteReg(MPUREG_XG_OFFS_USRH, 0x00);
-    WriteReg(MPUREG_XG_OFFS_USRL, 0x00);
-    WriteReg(MPUREG_YG_OFFS_USRH, 0x00);
-    WriteReg(MPUREG_YG_OFFS_USRL, 0x00);
-    WriteReg(MPUREG_ZG_OFFS_USRH, 0x00);
-    WriteReg(MPUREG_ZG_OFFS_USRL, 0x00);
+    WriteReg(MPUREG_XG_OFFS_H, 0x00);
+    WriteReg(MPUREG_XG_OFFS_L, 0x00);
+    WriteReg(MPUREG_YG_OFFS_H, 0x00);
+    WriteReg(MPUREG_YG_OFFS_L, 0x00);
+    WriteReg(MPUREG_ZG_OFFS_H, 0x00);
+    WriteReg(MPUREG_ZG_OFFS_L, 0x00);
 
     g_bias[0] = 0;
     g_bias[1] = 0;
@@ -630,6 +656,30 @@ bool MPU9250::gyro_calibrate(int sample) {
     return true;
 }
 
+bool MPU9250::accelangle_calibrate(int sample) {
+    a_angle_bias.Pitch = 0;
+    a_angle_bias.Roll = 0;
+    float local_pitch = 0;
+    float local_roll = 0;
+    for (int i = 0; i < 300; i++) {
+        read_acc();
+        delayMicroseconds(1000);
+    }
+    
+    for (int i = 0; i < sample; i++) {
+        read_acc();
+        CarculateAngle();
+        local_pitch = local_pitch + accelangle.Pitch;
+        local_roll = local_roll + accelangle.Roll;
+        delayMicroseconds(1000);
+    }
+    a_angle_bias.Pitch = (float)(local_pitch / sample);
+    a_angle_bias.Roll = (float)(local_roll / sample);
+    Serial.printf("Bias : %f, %f\n", a_angle_bias.Pitch, a_angle_bias.Roll);
+
+    return true;
+}
+
 void MPU9250::select() {
     //Set CS low to start transmission (interrupts conversion)
     spi->beginTransaction(SPISettings(my_clock, MSBFIRST, SPI_MODE3));
@@ -661,20 +711,41 @@ void MPU9250::init_Kalman() {
     kalmantimes = 0;
 }
 
-void MPU9250::CarculateAngle(float accel[3]){
-    AngleRoll = atan(accel[1]/sqrt(accel[0]*accel[0] + accel[2]*accel[2]))*1/ (PI/180);
-    AnglePitch = -atan(accel[0]/sqrt(accel[1]*accel[1] + accel[2]*accel[2]))*1/ (PI/180);
+void MPU9250::CarculateAngle() {
+    accelangle.Roll = atan(accel_data[1]/sqrt(accel_data[0]*accel_data[0]
+     + accel_data[2]*accel_data[2]))*1/ (PI/180) - a_angle_bias.Pitch;//- 5.07;
+    accelangle.Pitch = -atan(accel_data[0]/sqrt(accel_data[1]*accel_data[1]
+     + accel_data[2]*accel_data[2]))*1/ (PI/180) - a_angle_bias.Roll;// + 6.54;
 }
+
+void MPU9250::CarculateAngleGyro(float deltatime){
+    gyroangle.Roll += gyro_data[0] * deltatime;
+    gyroangle.Pitch += gyro_data[1] * deltatime;
+    gyroangle.Yaw += gyro_data[2] * deltatime; 
+}
+
 
 void MPU9250::kalman_1d(float KalmanState, float KalmanUncertainty,
     float KalmanInput, float KalmanMeasurement, float deltatime)
+    /*
+    kalmanState : 이전 추정값
+    KalmanUncertainty : 오차공분산
+    kalmanInput : 시스템의 변화량
+    kalmanMaesurement : 측정값
+    */
 {
-    KalmanState = KalmanState + deltatime * KalmanInput; // carculate gyro to predict angle
-    KalmanUncertainty = KalmanUncertainty + deltatime * deltatime * 4 * 4;
+    float A = 1*1; // 시스템 행렬
+    float Q = pow(4*deltatime,2); // 시스템 잡음 공분산 (측정된 주기가 길어지면 오차가 증가)
+    float H = 1*1; // 출력 행렬, 측정값과 상태변수의 관계
+    float R = 3*3; // 측정 잡음 공분산
 
-    float KalmanGain = KalmanUncertainty * 1/ (1*KalmanUncertainty + 3*3);
-    KalmanState = KalmanState + KalmanGain * (KalmanMeasurement - KalmanState);
-    KalmanUncertainty = (1-KalmanGain) * KalmanUncertainty;
+    KalmanState = KalmanState + deltatime * KalmanInput; // carculate gyro to predict angle
+    KalmanUncertainty = (A * KalmanUncertainty * A) + Q;
+
+    float KalmanGain = KalmanUncertainty * H / (H * KalmanUncertainty + R);
+
+    KalmanState = KalmanState + KalmanGain * (KalmanMeasurement - H * KalmanState);
+    KalmanUncertainty = (1 - KalmanGain) * KalmanUncertainty * H;
 
     Kalman1DOutput[0] = KalmanState;
     Kalman1DOutput[1] = KalmanUncertainty;
@@ -687,22 +758,23 @@ ANGLE MPU9250::CalKalmanAngle(uint32_t time) {
     read_acc();
     read_gyro();
 
-    CarculateAngle(accel_data);
-
     if (time < kalmantimes) time = time + (0xFFFFFFFF-kalmantimes); // time overflow
     float deltatime = ((float)(time- kalmantimes) / 1000);
     
     kalmantimes = time;
+
+    CarculateAngleGyro(deltatime);
+    CarculateAngle();
 #if MPU9250DEBUG==1 && DEBUGTIME==1
     Serial.print("INFO NPU9250 kalman delta time : "); Serial.println(deltatime*1000);
 #endif
 
     // Roll
-    kalman_1d(KalmanAngle.Roll, KalmanUncertaintyAngle.Roll, gyro_data[0], AngleRoll, deltatime);
+    kalman_1d(KalmanAngle.Roll, KalmanUncertaintyAngle.Roll, gyro_data[0], accelangle.Roll, deltatime);
     KalmanAngle.Roll= Kalman1DOutput[0];
     KalmanUncertaintyAngle.Roll = Kalman1DOutput[1];
     // Pitch
-    kalman_1d(KalmanAngle.Pitch, KalmanUncertaintyAngle.Pitch, gyro_data[1], AnglePitch, deltatime);
+    kalman_1d(KalmanAngle.Pitch, KalmanUncertaintyAngle.Pitch, gyro_data[1], accelangle.Pitch, deltatime);
     KalmanAngle.Pitch = Kalman1DOutput[0];
     KalmanUncertaintyAngle.Pitch = Kalman1DOutput[1];
 
@@ -712,4 +784,87 @@ ANGLE MPU9250::CalKalmanAngle(uint32_t time) {
 #endif
 	
     return KalmanAngle;
+}
+
+void MPU9250::MeaurementAccelBias(int sample) {
+    double x1bias[3] = {0,};
+    double x2bias[3] = {0,};
+    double y1bias[3] = {0,};
+    double y2bias[3] = {0,};
+    double z1bias[3] = {0,};
+    double z2bias[3] = {0,};
+    a_bias[0] = 0;
+    a_bias[1] = 0;
+    a_bias[2] = 0;
+    Serial.printf("Rotating so that Z+ goes up\n");
+    for (int i = 0; i < sample; i++) {
+        read_acc();
+        for (int j=0; j < 3; j++)
+        z1bias[j] += (double)accel_data[j];
+        
+        delay(INTERVAL_MS);
+    }
+    Serial.printf("z+ : %f %f %f\n",z1bias[0]/sample,z1bias[1]/sample,z1bias[2]/sample);
+
+    Serial.printf("Rotating so that Z- goes up\n");
+    WAITFORINPUT();
+    for (int i = 0; i < sample; i++) {
+        read_acc();
+        for (int j=0; j < 3; j++)
+        z2bias[j] += (double)accel_data[j];
+        
+        delay(INTERVAL_MS);
+    }
+    Serial.printf("z- : %f %f %f\n",z2bias[0]/sample,z2bias[1]/sample,z2bias[2]/sample);
+
+    Serial.printf("Rotating so that X+ goes up\n");
+    WAITFORINPUT();
+    for (int i = 0; i < sample; i++) {
+        read_acc();
+        for (int j=0; j < 3; j++)
+        x1bias[j] += (double)accel_data[j];
+        
+        delay(INTERVAL_MS);
+    }
+    Serial.printf("x+ : %f %f %f\n",x1bias[0]/sample,x1bias[1]/sample,x1bias[2]/sample);
+
+    Serial.printf("Rotating so that X- goes up\n");
+    WAITFORINPUT();
+    for (int i = 0; i < sample; i++) {
+        read_acc();
+        for (int j=0; j < 3; j++)
+        x2bias[j] += (double)accel_data[j];
+        
+        delay(INTERVAL_MS);
+    }
+    Serial.printf("x- : %f %f %f\n",x2bias[0]/sample,x2bias[1]/sample,x2bias[2]/sample);
+
+    Serial.printf("Rotating so that Y+ goes up\n");
+    WAITFORINPUT();
+    for (int i = 0; i < sample; i++) {
+        read_acc();
+        for (int j=0; j < 3; j++)
+        y1bias[j] += (double)accel_data[j];
+        
+        delay(INTERVAL_MS);
+    }
+    Serial.printf("y+ : %f %f %f\n",y1bias[0]/sample,y1bias[1]/sample,y1bias[2]/sample);
+
+    
+    Serial.printf("Rotating so that Y- goes up\n");
+    WAITFORINPUT();
+    for (int i = 0; i < sample; i++) {
+        read_acc();
+        for (int j=0; j < 3; j++)
+        y2bias[j] += (double)accel_data[j];
+        delay(INTERVAL_MS);
+    }
+    Serial.printf("y- : %f %f %f\n",y2bias[0]/sample,y2bias[1]/sample,y2bias[2]/sample);
+
+    for (int i = 0; i < 3; i++)
+        a_bias[i] = (x1bias[i] + x2bias[i] + y1bias[i] + y2bias[i] + z1bias[i] + z2bias[i])/(6*sample);
+
+    Serial.printf("accel bias : %f %f %f\n", a_bias[0], a_bias[1], a_bias[2]);
+
+    WAITFORINPUT();
 }

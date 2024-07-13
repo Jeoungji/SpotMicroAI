@@ -38,21 +38,7 @@ struct footVector {
 class SpotMicro{
 private:
     // reset state
-    PointState Stay = {
-        {{A_X, -A_H, A_Z, 1}, {A_X, -A_H, -A_Z, 1}, {-A_X, -A_H, A_Z, 1}, {-A_X, -A_H, -A_Z, 1}},
-        {33.502508864, 0, -3.648709096},
-        {0, 0, 0}
-    };
-    PointState Sit = {
-        {{A_X, -A_H, A_Z, 1}, {A_X, -A_H, -A_Z, 1}, {-A_X, -A_H, A_Z, 1}, {-A_X, -A_H, -A_Z, 1}},
-        {0, 0, 0},
-        {0, 0, 0.84}
-    };
-    PointState Lie = {
-        {{140, -41, 157, 1}, {140, -41, -157, 1}, {-40, -41, 157, 1}, {-40, -41, -157, 1}},
-        {0, 0, 0},
-        {0, 0, 0}
-    };
+    
     Matrix mat;
 
     
@@ -63,7 +49,7 @@ private:
     PointState current;
 
     // goal state
-    PointState set;
+    PointState set = Stay;
     float set_jointanlgle[4][3] = {0,};
 
     bool _init_;
@@ -79,26 +65,49 @@ private:
     PointState current_vel = { 0, };
     float foot_max_v = 1000; // mm/s
     float body_max_v = 1000; // mm/s
-    float body_max_w = 0.01745329251994* 10; // rad/s
+    float body_max_w = 0.1745329251994* 100; // rad/s
     float accel = 1; // mm/s2
 
     // Sensor
     MovingAverageFilter voltagesensor;
 
     // walking
-    footVector Walkvector[4] = {{0,0,MaxStepHigh},};
-    uint16_t foottimer[4] = {0,};
-    uint16_t walkingtime[4] =  {200, 300, 200, 700};
+    footVector Walkvector[4] = {{0,0,MaxStepHigh},
+                                {0,0,MaxStepHigh},
+                                {0,0,MaxStepHigh},
+                                {0,0,MaxStepHigh}};
+    uint16_t foottimer[4] = {0,1200, 1200, 0}; // ms
+    uint16_t walkingtime[4] =  {200, 500, 200, 1000}; // ms
     
 
 public:
+    const PointState Stay = {
+        {{A_X, -A_H, A_Z, 1}, {A_X, -A_H, -A_Z, 1}, {-A_X, -A_H, A_Z, 1}, {-A_X, -A_H, -A_Z, 1}},
+        {33.502508864, 0, -3.648709096},
+        {0, 0, 0}
+    };
+    const PointState Sit = {
+        {{A_X, -A_H, A_Z, 1}, {A_X, -A_H, -A_Z, 1}, {-A_X, -A_H, A_Z, 1}, {-A_X, -A_H, -A_Z, 1}},
+        {0, 0, 0},
+        {0, 0, 0.84}
+    };
+    const PointState Lie = {
+        {{140, -41, 157, 1}, {140, -41, -157, 1}, {-40, -41, 157, 1}, {-40, -41, -157, 1}},
+        {0, 0, 0},
+        {0, 0, 0}
+    };
 
+    float imux;
+    float imuy;
 
     SpotMicro(int power = 0);
     bool Initialization();
     //bool Init_IMU(MPU9250 imu);
 
     bool ForcedInputState(PointState state); // set_state = state
+    bool InputState(PointState state);
+    bool ReadSetState(PointState *state);
+    bool ReadCurrentState(PointState *state);
     bool VelocityInputState(const float *state, char coordinate, float velocity);
     bool VelocityInputState(const float **state, char coordinate, float velocity);
 
@@ -106,6 +115,7 @@ public:
     float SensingVoltage(bool autoOFF = false);
     bool Set_mode(uint8_t s_movingstatus);
     uint8_t Get_mode() {return movingstatus;}
+    void Balancing(float p);
     void Activate(PointState &state);
     
     void powerON();
